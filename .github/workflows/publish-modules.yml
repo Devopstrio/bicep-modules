@@ -1,0 +1,32 @@
+name: "📦 Publish Bicep Modules"
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on semantic version tags
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: "Bicep Lint"
+        run: |
+          az bicep build --file modules/network/vnet.bicep
+          az bicep build --file modules/security/key-vault.bicep
+
+  publish:
+    needs: lint-and-validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: "Publish Module: VNet"
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          az bicep publish --file modules/network/vnet.bicep \
+            --target "br:${{ secrets.ACR_NAME }}.azurecr.io/bicep/vnet:$VERSION"
